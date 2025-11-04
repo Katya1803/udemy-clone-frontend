@@ -26,6 +26,25 @@ export default function LoginPage() {
     setError('');
   };
 
+  const getErrorMessage = (err: any): string => {
+    // Try different error paths
+    if (err.response?.data?.data?.message) {
+      return err.response.data.data.message;
+    }
+    if (err.response?.data?.message) {
+      return err.response.data.message;
+    }
+    if (err.response?.data?.data?.details) {
+      // Validation errors
+      const details = err.response.data.data.details;
+      return details.map((d: any) => d.message).join(', ');
+    }
+    if (err.message) {
+      return err.message;
+    }
+    return 'Login failed. Please try again.';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -44,7 +63,7 @@ export default function LoginPage() {
         router.push('/');
       }
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'Login failed. Please try again.';
+      const errorMessage = getErrorMessage(err);
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -57,7 +76,7 @@ export default function LoginPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-          <p className="text-gray-600">Log in to continue learning</p>
+          <p className="text-gray-600">Sign in to continue learning</p>
         </div>
 
         {/* Error Message */}
@@ -69,7 +88,7 @@ export default function LoginPage() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Username or Email */}
+          {/* Account (Username or Email) */}
           <div>
             <label htmlFor="account" className="block text-sm font-medium text-gray-700 mb-2">
               Username or Email
@@ -107,19 +126,21 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-spring-500 hover:bg-spring-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-spring-600 text-white py-3 rounded-lg hover:bg-spring-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
-            {loading ? 'Logging in...' : 'Log In'}
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 
         {/* Register Link */}
-        <p className="mt-6 text-center text-gray-600">
-          Don&apos;t have an account?{' '}
-          <Link href="/register" className="text-spring-600 hover:text-spring-700 font-semibold">
-            Sign Up
-          </Link>
-        </p>
+        <div className="mt-6 text-center">
+          <p className="text-gray-600">
+            Don't have an account?{' '}
+            <Link href="/register" className="text-spring-600 hover:text-spring-700 font-medium">
+              Sign up
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

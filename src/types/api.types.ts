@@ -45,7 +45,7 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   access_token: string;
-  refresh_token: string;
+  refresh_token: string | null;
   token_type: string;
   expires_in: number;
   user: UserInfo;
@@ -68,13 +68,12 @@ export interface ResendOtpRequest {
   email: string;
 }
 
-
-
 // User DTOs
 export enum UserStatus {
   ACTIVE = 'ACTIVE',
   INACTIVE = 'INACTIVE',
   SUSPENDED = 'SUSPENDED',
+  DELETED = 'DELETED',
 }
 
 export enum Gender {
@@ -83,23 +82,19 @@ export enum Gender {
   OTHER = 'OTHER',
 }
 
-export interface Address {
-  street?: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  postalCode?: string;
-}
-
+// FIXED: Match với backend structure
 export interface UserProfileResponse {
+  id?: string;
   firstName?: string;
   lastName?: string;
-  phoneNumber?: string;
-  dateOfBirth?: string;
+  phone?: string;          // Changed from phoneNumber
+  dateOfBirth?: string;    // LocalDate from backend -> string
   gender?: Gender;
   bio?: string;
   avatarUrl?: string;
-  address?: Address;
+  address?: string;        // Changed from nested object to string
+  city?: string;
+  country?: string;
 }
 
 export interface UserResponse {
@@ -117,15 +112,18 @@ export interface UpdateUserRequest {
   email?: string;
 }
 
+// FIXED: Match với backend structure
 export interface UpdateUserProfileRequest {
   firstName?: string;
   lastName?: string;
-  phoneNumber?: string;
-  dateOfBirth?: string;
+  phone?: string;          // Changed from phoneNumber
+  dateOfBirth?: string;    // LocalDate string format
   gender?: Gender;
   bio?: string;
   avatarUrl?: string;
-  address?: Address;
+  address?: string;        // Changed from nested object to string
+  city?: string;
+  country?: string;
 }
 
 // Pagination

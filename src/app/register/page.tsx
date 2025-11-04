@@ -25,11 +25,30 @@ export default function RegisterPage() {
     setError('');
   };
 
+  const getErrorMessage = (err: any): string => {
+    // Try different error paths
+    if (err.response?.data?.data?.message) {
+      return err.response.data.data.message;
+    }
+    if (err.response?.data?.message) {
+      return err.response.data.message;
+    }
+    if (err.response?.data?.data?.details) {
+      // Validation errors - combine all field errors
+      const details = err.response.data.data.details;
+      return details.map((d: any) => `${d.field}: ${d.message}`).join(', ');
+    }
+    if (err.message) {
+      return err.message;
+    }
+    return 'Registration failed. Please try again.';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    // Validation
+    // Client-side validation
     if (formData.password !== confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -37,6 +56,16 @@ export default function RegisterPage() {
 
     if (formData.password.length < 8) {
       setError('Password must be at least 8 characters');
+      return;
+    }
+
+    if (formData.username.length < 3) {
+      setError('Username must be at least 3 characters');
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_-]+$/.test(formData.username)) {
+      setError('Username can only contain letters, numbers, underscore and hyphen');
       return;
     }
 
@@ -50,7 +79,7 @@ export default function RegisterPage() {
         router.push(`/verify-otp?email=${encodeURIComponent(formData.email)}`);
       }
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'Registration failed. Please try again.';
+      const errorMessage = getErrorMessage(err);
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -87,11 +116,15 @@ export default function RegisterPage() {
               required
               minLength={3}
               maxLength={50}
+              pattern="^[a-zA-Z0-9_-]+$"
               value={formData.username}
               onChange={handleChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-spring-500 focus:border-transparent transition-all"
-              placeholder="Enter your username"
+              placeholder="Choose a username"
             />
+            <p className="mt-1 text-xs text-gray-500">
+              3-50 characters, letters, numbers, underscore, hyphen only
+            </p>
           </div>
 
           {/* Email */}
@@ -125,8 +158,9 @@ export default function RegisterPage() {
               value={formData.password}
               onChange={handleChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-spring-500 focus:border-transparent transition-all"
-              placeholder="Enter your password"
+              placeholder="Create a password"
             />
+            <p className="mt-1 text-xs text-gray-500">Minimum 8 characters</p>
           </div>
 
           {/* Confirm Password */}
@@ -139,9 +173,11 @@ export default function RegisterPage() {
               name="confirmPassword"
               type="password"
               required
-              minLength={8}
               value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
+              onChange={(e) => {
+                setConfirmPassword(e.target.value);
+                setError('');
+              }}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-spring-500 focus:border-transparent transition-all"
               placeholder="Confirm your password"
             />
@@ -151,19 +187,21 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-spring-500 hover:bg-spring-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-spring-600 text-white py-3 rounded-lg hover:bg-spring-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
-            {loading ? 'Creating Account...' : 'Sign Up'}
+            {loading ? 'Creating account...' : 'Create Account'}
           </button>
         </form>
 
         {/* Login Link */}
-        <p className="mt-6 text-center text-gray-600">
-          Already have an account?{' '}
-          <Link href="/login" className="text-spring-600 hover:text-spring-700 font-semibold">
-            Log In
-          </Link>
-        </p>
+        <div className="mt-6 text-center">
+          <p className="text-gray-600">
+            Already have an account?{' '}
+            <Link href="/login" className="text-spring-600 hover:text-spring-700 font-medium">
+              Sign in
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

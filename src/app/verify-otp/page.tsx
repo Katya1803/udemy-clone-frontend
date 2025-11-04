@@ -24,6 +24,25 @@ function VerifyOtpContent() {
     }
   }, [email, router]);
 
+  const getErrorMessage = (err: any): string => {
+    // Try different error paths
+    if (err.response?.data?.data?.message) {
+      return err.response.data.data.message;
+    }
+    if (err.response?.data?.message) {
+      return err.response.data.message;
+    }
+    if (err.response?.data?.data?.details) {
+      // Validation errors
+      const details = err.response.data.data.details;
+      return details.map((d: any) => d.message).join(', ');
+    }
+    if (err.message) {
+      return err.message;
+    }
+    return 'An error occurred. Please try again.';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -34,13 +53,18 @@ function VerifyOtpContent() {
       return;
     }
 
+    if (!/^\d+$/.test(otp)) {
+      setError('OTP must contain only numbers');
+      return;
+    }
+
     setLoading(true);
 
     try {
       const response = await authApi.verifyOtp({ email, otp });
       
       if (response.success && response.data) {
-        const { access_token, refresh_token, user } = response.data;
+        const { access_token, user } = response.data;
         
         // Save auth state
         setAuth(user, access_token);
@@ -53,7 +77,7 @@ function VerifyOtpContent() {
         }, 1500);
       }
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'Invalid OTP. Please try again.';
+      const errorMessage = getErrorMessage(err);
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -72,7 +96,7 @@ function VerifyOtpContent() {
         setSuccess('New OTP sent successfully! Please check your email.');
       }
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'Failed to resend OTP.';
+      const errorMessage = getErrorMessage(err);
       setError(errorMessage);
     } finally {
       setResending(false);
@@ -84,24 +108,10 @@ function VerifyOtpContent() {
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-spring-100 rounded-full mb-4">
-            <svg
-              className="w-8 h-8 text-spring-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-              />
-            </svg>
-          </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Verify Your Email</h1>
           <p className="text-gray-600">
-            We&apos;ve sent a 6-digit code to <br />
+            We've sent a 6-digit code to
+            <br />
             <span className="font-semibold text-gray-900">{email}</span>
           </p>
         </div>
@@ -133,23 +143,26 @@ function VerifyOtpContent() {
               type="text"
               required
               maxLength={6}
-              pattern="[0-9]{6}"
+              pattern="\d{6}"
               value={otp}
               onChange={(e) => {
                 const value = e.target.value.replace(/\D/g, '');
                 setOtp(value);
                 setError('');
               }}
-              className="w-full px-4 py-3 text-center text-2xl font-bold tracking-widest border border-gray-300 rounded-lg focus:ring-2 focus:ring-spring-500 focus:border-transparent transition-all"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-spring-500 focus:border-transparent transition-all text-center text-2xl tracking-widest font-mono"
               placeholder="000000"
             />
+            <p className="mt-1 text-xs text-gray-500 text-center">
+              6-digit code (numbers only)
+            </p>
           </div>
 
           {/* Submit Button */}
           <button
             type="submit"
             disabled={loading || otp.length !== 6}
-            className="w-full bg-spring-500 hover:bg-spring-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-spring-600 text-white py-3 rounded-lg hover:bg-spring-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
             {loading ? 'Verifying...' : 'Verify Email'}
           </button>
@@ -157,14 +170,23 @@ function VerifyOtpContent() {
 
         {/* Resend OTP */}
         <div className="mt-6 text-center">
-          <p className="text-gray-600 text-sm mb-2">Didn&apos;t receive the code?</p>
+          <p className="text-gray-600 mb-2">Didn't receive the code?</p>
           <button
-            type="button"
             onClick={handleResendOtp}
             disabled={resending}
-            className="text-spring-600 hover:text-spring-700 font-semibold text-sm disabled:opacity-50"
+            className="text-spring-600 hover:text-spring-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {resending ? 'Resending...' : 'Resend OTP'}
+            {resending ? 'Sending...' : 'Resend OTP'}
+          </button>
+        </div>
+
+        {/* Back to Register */}
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => router.push('/register')}
+            className="text-gray-600 hover:text-gray-700"
+          >
+            ← Back to Registration
           </button>
         </div>
       </div>
@@ -174,7 +196,11 @@ function VerifyOtpContent() {
 
 export default function VerifyOtpPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-spring-500 to-spring-700 flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    }>
       <VerifyOtpContent />
     </Suspense>
   );

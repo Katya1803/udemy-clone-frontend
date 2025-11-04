@@ -1,15 +1,17 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { UserInfo } from '@/types/api.types';
 
 interface AuthState {
   user: UserInfo | null;
   accessToken: string | null;
   isAuthenticated: boolean;
+  isHydrated: boolean;
   
   setAuth: (user: UserInfo, accessToken: string) => void;
   clearAuth: () => void;
   updateUser: (user: Partial<UserInfo>) => void;
+  setHydrated: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -18,13 +20,9 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       accessToken: null,
       isAuthenticated: false,
+      isHydrated: false,
 
       setAuth: (user, accessToken) => {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('access_token', accessToken);
-          localStorage.setItem('user', JSON.stringify(user));
-        }
-        
         set({
           user,
           accessToken,
@@ -33,12 +31,6 @@ export const useAuthStore = create<AuthState>()(
       },
 
       clearAuth: () => {
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          localStorage.removeItem('user');
-        }
-        
         set({
           user: null,
           accessToken: null,
@@ -49,17 +41,20 @@ export const useAuthStore = create<AuthState>()(
       updateUser: (userData) => {
         set((state) => {
           const updatedUser = state.user ? { ...state.user, ...userData } : null;
-          
-          if (typeof window !== 'undefined' && updatedUser) {
-            localStorage.setItem('user', JSON.stringify(updatedUser));
-          }
-          
           return { user: updatedUser };
         });
+      },
+
+      setHydrated: () => {
+        set({ isHydrated: true });
       },
     }),
     {
       name: 'auth-storage',
+      storage: createJSONStorage(() => localStorage),
+      onRehydrateStorage: () => (state) => {
+        state?.setHydrated();
+      },
     }
   )
 );
