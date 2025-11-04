@@ -35,10 +35,10 @@ export default function LoginPage() {
       const response = await authApi.login(formData);
       
       if (response.success && response.data) {
-        const { access_token, refresh_token, user } = response.data;
+        const { access_token, user } = response.data;
         
         // Save auth state
-        setAuth(user, access_token, refresh_token);
+        setAuth(user, access_token);
         
         // Redirect to homepage
         router.push('/');

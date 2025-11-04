@@ -43,7 +43,7 @@ function VerifyOtpContent() {
         const { access_token, refresh_token, user } = response.data;
         
         // Save auth state
-        setAuth(user, access_token, refresh_token);
+        setAuth(user, access_token);
         
         setSuccess('Verification successful! Redirecting...');
         

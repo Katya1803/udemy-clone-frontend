@@ -68,9 +68,7 @@ export interface ResendOtpRequest {
   email: string;
 }
 
-export interface RefreshTokenRequest {
-  refreshToken: string;
-}
+
 
 // User DTOs
 export enum UserStatus {

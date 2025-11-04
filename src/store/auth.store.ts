@@ -5,11 +5,9 @@ import { UserInfo } from '@/types/api.types';
 interface AuthState {
   user: UserInfo | null;
   accessToken: string | null;
-  refreshToken: string | null;
   isAuthenticated: boolean;
   
-  // Actions
-  setAuth: (user: UserInfo, accessToken: string, refreshToken: string) => void;
+  setAuth: (user: UserInfo, accessToken: string) => void;
   clearAuth: () => void;
   updateUser: (user: Partial<UserInfo>) => void;
 }
@@ -19,27 +17,22 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       accessToken: null,
-      refreshToken: null,
       isAuthenticated: false,
 
-      setAuth: (user, accessToken, refreshToken) => {
-        // Save to localStorage for API client
+      setAuth: (user, accessToken) => {
         if (typeof window !== 'undefined') {
           localStorage.setItem('access_token', accessToken);
-          localStorage.setItem('refresh_token', refreshToken);
           localStorage.setItem('user', JSON.stringify(user));
         }
         
         set({
           user,
           accessToken,
-          refreshToken,
           isAuthenticated: true,
         });
       },
 
       clearAuth: () => {
-        // Clear localStorage
         if (typeof window !== 'undefined') {
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
@@ -49,7 +42,6 @@ export const useAuthStore = create<AuthState>()(
         set({
           user: null,
           accessToken: null,
-          refreshToken: null,
           isAuthenticated: false,
         });
       },

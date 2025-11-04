@@ -1,4 +1,4 @@
-import apiClient from '@/lib/api-client';
+import {apiClient} from '@/lib/api-client';
 import {
   ApiResponse,
   LoginRequest,
@@ -7,7 +7,6 @@ import {
   RegisterResponse,
   VerifyOtpRequest,
   ResendOtpRequest,
-  RefreshTokenRequest,
 } from '@/types/api.types';
 
 export const authApi = {

@@ -1,76 +1,122 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { ApiResponse } from '@/types/api.types';
+import axios, {
+  AxiosError,
+  AxiosInstance,
+  InternalAxiosRequestConfig,
+  AxiosResponse,
+  AxiosHeaders,
+  AxiosRequestHeaders,
+} from 'axios';
+import { useAuthStore } from '@/store/auth.store';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
 
-export const apiClient = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  timeout: 30000,
-  withCredentials: true,
+const apiClient: AxiosInstance = axios.create({
+  baseURL: BASE_URL,
+  withCredentials: true, 
+  timeout: 20000,
 });
 
-// Request interceptor
-apiClient.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    // Get token from localStorage
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('access_token');
-      if (token && config.headers) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+const refreshClient: AxiosInstance = axios.create({
+  baseURL: BASE_URL,
+  withCredentials: true,
+  timeout: 20000,
+});
+
+const AUTH_ENDPOINTS_NO_REFRESH = new Set<string>([
+  '/auth/login',
+  '/auth/register',
+  '/auth/verify-otp',
+  '/auth/refresh',
+  '/auth/logout',
+]);
+
+const isAuthEndpoint = (url?: string) => {
+  if (!url) return false;
+  try {
+    const path = url.startsWith('http') ? new URL(url).pathname : url;
+    return [...AUTH_ENDPOINTS_NO_REFRESH].some((p) =>
+      path.startsWith(p)
+    );
+  } catch {
+    return false;
   }
-);
+};
+
+let refreshPromise: Promise<string | null> | null = null;
+
+apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const token = useAuthStore.getState().accessToken;
+  if (token) {
+    // Sử dụng phương thức .set() thay vì gán trực tiếp object
+    if (!config.headers) {
+      config.headers = new AxiosHeaders();
+    }
+    (config.headers as AxiosHeaders).set('Authorization', `Bearer ${token}`);
+  }
+  return config;
+});
 
 apiClient.interceptors.response.use(
-  (response) => response,
-  async (error: AxiosError<ApiResponse<any>>) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+  (response: AxiosResponse) => response,
+  async (error: AxiosError) => {
+    const { response, config } = error;
+    const original =
+      config as InternalAxiosRequestConfig & { _retried?: boolean };
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      try {
-        const refreshToken = localStorage.getItem('refresh_token');
-        
-        if (!refreshToken) {
-          throw new Error('No refresh token');
-        }
-
-        const response = await axios.post(`${API_URL}/auth/refresh`, null, {
-          withCredentials: true
-        });
-
-        const { access_token } = response.data.data;
-
-        localStorage.setItem('access_token', access_token);
-
-        if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${access_token}`;
-        }
-
-        return apiClient(originalRequest);
-      } catch (refreshError) {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('user');
-        
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
-        
-        return Promise.reject(refreshError);
-      }
+    if (!response || response.status !== 401 || !original) {
+      return Promise.reject(error);
     }
 
-    return Promise.reject(error);
+    if (isAuthEndpoint(original.url)) {
+      useAuthStore.getState().clearAuth();
+      return Promise.reject(error);
+    }
+
+    if (original._retried) {
+      useAuthStore.getState().clearAuth();
+      return Promise.reject(error);
+    }
+    original._retried = true;
+
+    try {
+      if (!refreshPromise) {
+        refreshPromise = (async () => {
+          const res = await refreshClient.post('/auth/refresh', {});
+          const newToken = res?.data?.data?.access_token as string | undefined;
+          if (!newToken) return null;
+
+          const { user } = useAuthStore.getState();
+          useAuthStore.getState().setAuth(user!, newToken);
+          return newToken;
+        })()
+          .catch(() => null)
+          .finally(() => {
+            setTimeout(() => {
+              refreshPromise = null;
+            }, 0);
+          });
+      }
+
+      const newAccess = await refreshPromise;
+      if (!newAccess) {
+        useAuthStore.getState().clearAuth();
+        return Promise.reject(error);
+      }
+
+      if (!original.headers) {
+        original.headers = new AxiosHeaders();
+      }
+      (original.headers as AxiosHeaders).set(
+        'Authorization',
+        `Bearer ${newAccess}`
+      );
+
+      return apiClient.request(original);
+    } catch (refreshErr) {
+      useAuthStore.getState().clearAuth();
+      return Promise.reject(refreshErr);
+    }
   }
 );
 
-export default apiClient;
+export { apiClient };
